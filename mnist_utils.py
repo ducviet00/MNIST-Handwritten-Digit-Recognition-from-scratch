@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 from sklearn.metrics import accuracy_score
 
+
 def theta(Z):
 
     ez = np.exp(Z - np.max(Z, axis=0, keepdims=True))
@@ -105,16 +106,23 @@ def linear_backward(dZ, cache):
     return dA_prev, dW, db
 
 
-def linear_activation_backward(dA, cache, activation):
+def linear_activation_backward_relu(dA, cache):
     linear_cache, activation_cache = cache
+    dZ = relu_backward(dA, activation_cache)
+    dA_prev, dW, db = linear_backward(dZ, linear_cache)
 
-    if activation == "relu":
-        dZ = relu_backward(dA, activation_cache)
-        dA_prev, dW, db = linear_backward(dZ, linear_cache)
+    return dA_prev, dW, db
 
-    elif activation == "theta":
-        dZ = theta_backward(dA, activation_cache)
-        dA_prev, dW, db = linear_backward(dZ, linear_cache)
+
+def linear_activation_backward_theta(A_hat, Y, cache):
+    linear_cache, activation_cache = cache
+    A_prev, W, b = linear_cache
+
+    dZ = A_hat - Y
+    m = A_prev.shape[1]
+    dW = (1./m) * np.dot(dZ, A_prev.T)
+    db = (1./m) * np.sum(dZ, axis=1, keepdims=True)
+    dA_prev = np.dot(W.T, dZ)
 
     return dA_prev, dW, db
 
@@ -125,17 +133,15 @@ def L_model_backward(AL, Y, caches):
     m = AL.shape[1]
     Y = Y.reshape(AL.shape)
 
-    dAL = - (np.divide(Y, AL) - np.divide(1 - Y, 1 - AL))
-
     current_cache = caches[L-1]
     grads["dA" + str(L-1)], grads["dW" + str(L)], grads["db" + str(L)
-                                                        ] = linear_activation_backward(dAL, current_cache, activation="theta")
+                                                        ] = linear_activation_backward_theta(AL, Y, current_cache)
 
     for l in reversed(range(L-1)):
         # lth layer: (RELU -> LINEAR) gradients.
         current_cache = caches[l]
-        dA_prev_temp, dW_temp, db_temp = linear_activation_backward(
-            grads["dA" + str(l + 1)], current_cache, activation="relu")
+        dA_prev_temp, dW_temp, db_temp = linear_activation_backward_relu(
+            grads["dA" + str(l + 1)], current_cache)
         grads["dA" + str(l)] = dA_prev_temp
         grads["dW" + str(l + 1)] = dW_temp
         grads["db" + str(l + 1)] = db_temp
@@ -216,25 +222,24 @@ def L_layer_model(X, Y, layers_dims, num_epochs=3000, learning_rate=0.0075, mini
             # Update parameters.
             parameters = update_parameters(parameters, grads, learning_rate)
 
-            # Print the cost every 100 training example
+            # Plot cost each minibatches
 
         cost_avg = cost_total / len(minibatches)
         if print_cost:
-            print("Cost after iteration %i: %f" % (i, cost_avg))
-        if print_cost:
-            costs.append(cost_avg)  
+            print("Cost average after iteration %i: %f" % (i, cost_avg))
+            costs.append(cost_avg)
 
     # plot the cost
     plt.plot(np.squeeze(costs))
     plt.ylabel('cost')
-    plt.xlabel('iterations (per hundreds)')
+    plt.xlabel('iterations')
     plt.title("Learning rate =" + str(learning_rate))
     plt.show()
 
     return parameters
 
 
-def predict(X, Y, parameters):
+def predict(X, parameters):
     m = X.shape[1]
     n = len(parameters) // 2  # number of layers in the neural network
     p = np.zeros((1, m))
@@ -246,3 +251,11 @@ def predict(X, Y, parameters):
     prediction = np.round(probas)
 
     return prediction
+
+def score(Y, prediction):
+    prediction = np.argmax(prediction, axis=0)
+    Y_label = np.argmax(Y, axis=0)
+
+    score = 100*accuracy_score(Y_label, prediction)
+
+    return score

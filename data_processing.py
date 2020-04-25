@@ -39,7 +39,7 @@ def load_data():
     X_train = np.array(X_train) / 255.0
 
     X_train, X_val, Y_train, Y_val = train_test_split(
-        X_train, Y_train, test_size=0.1, random_state=2)
+        X_train, Y_train, test_size=0.1, random_state=8)
 
     # One-hot coding
     Y_train = to_categorical(Y_train, num_classes=10)
